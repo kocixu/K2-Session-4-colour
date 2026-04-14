@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>聽音認色</title>
+    <title>聽音認色：比例優化版</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser-arcade-physics.min.js"></script>
     <style>
         body { margin: 0; padding: 0; background-color: #fdfcf5; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
@@ -34,7 +34,7 @@ const COLORS = {
 };
 
 const OBJECT_KEYS = ['bottle', 'bag', 'paper', 'shoe', 'tissue'];
-let brush, mainObject, currentTarget, wordCards = [], gameQueue = [], trialCount = 0, scoreText, speakerIcon;
+let brush, mainObject, currentTarget, wordCards = [], gameQueue = [], trialCount = 0, scoreText, menuContainer, speakerIcon;
 
 function preload() {
     this.load.image('brush', 'assets/brush.png');
@@ -46,71 +46,84 @@ function preload() {
 }
 
 function create() {
-    // Immediate audio unlock
-    this.input.on('pointerdown', () => {
+    this.input.once('pointerdown', () => {
         if (this.sound.context.state === 'suspended') this.sound.context.resume();
     });
+    showLevelMenu(this);
+}
+
+function showLevelMenu(scene) {
+    if(menuContainer) menuContainer.destroy();
+    menuContainer = scene.add.container(450, 300).setDepth(100);
+    let bg = scene.add.rectangle(0, 0, 900, 600, 0x000000, 0.85);
+    let title = scene.add.text(0, -120, '聽聽顏色', { fontSize: '52px', fill: '#fff', fontWeight: 'bold' }).setOrigin(0.5);
     
-    startSetup(this, Object.keys(COLORS), 10);
+    let btn1 = createMenuBtn(scene, 0, '第一關 (4色)', () => startSetup(scene, ['red', 'yellow', 'green', 'blue'], 6));
+    let btn2 = createMenuBtn(scene, 100, '第二關 (10 題)', () => startSetup(scene, Object.keys(COLORS), 10));
+    
+    menuContainer.add([bg, title, btn1, btn2]);
+}
+
+function createMenuBtn(scene, y, label, cb) {
+    let container = scene.add.container(0, y);
+    let rect = scene.add.rectangle(0, 0, 350, 90, 0xFFA500).setInteractive({useHandCursor: true}).setStrokeStyle(4, 0xffffff);
+    let txt = scene.add.text(0, 0, label, { fontSize: '36px', fill: '#fff', fontWeight: 'bold' }).setOrigin(0.5);
+    container.add([rect, txt]);
+    rect.on('pointerdown', cb);
+    return container;
 }
 
 function startSetup(scene, colorKeys, totalRounds) {
+    menuContainer.destroy();
     wordCards = [];
     trialCount = 0;
 
-    let tempQueue = [];
+    gameQueue = [];
     for(let i=0; i < totalRounds; i++) {
-        tempQueue.push({ 
+        gameQueue.push({ 
             color: colorKeys[i % colorKeys.length], 
             obj: OBJECT_KEYS[i % OBJECT_KEYS.length] 
         });
     }
-    gameQueue = Phaser.Utils.Array.Shuffle(tempQueue);
+    gameQueue = Phaser.Utils.Array.Shuffle(gameQueue);
 
-    // SPEAKER: Moved to high depth to ensure it clicks every time
-    speakerIcon = scene.add.text(80, 300, '🔈', { fontSize: '100px' })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true })
-        .setDepth(1000);
-        
+    // Speaker moved safely to the far left (Fixed X)
+    speakerIcon = scene.add.text(80, 300, '🔈', { fontSize: '90px' }).setOrigin(0.5).setInteractive();
     speakerIcon.on('pointerdown', () => { 
-        if (scene.sound.get(currentTarget.color + '_vo')) {
-            scene.sound.play(currentTarget.color + '_vo');
-        }
+        if(scene.sound.get(currentTarget.color + '_vo')) scene.sound.play(currentTarget.color + '_vo'); 
     });
-
-    // Pulse animation for the speaker
     scene.tweens.add({ targets: speakerIcon, scale: 1.1, duration: 600, yoyo: true, repeat: -1 });
 
+    // Main Object positioned with plenty of space (X shifted slightly right to 340)
     mainObject = scene.add.image(340, 300, OBJECT_KEYS[0]).setOrigin(0.5);
+    
     scoreText = scene.add.text(450, 40, '', { fontSize: '30px', fill: '#6c757d', fontWeight: 'bold' }).setOrigin(0.5);
 
     colorKeys.forEach((key, i) => {
-        let x = 620 + (i % 2 * 155);
+        let x = 620 + (i % 2 * 145);
         let y = 140 + (Math.floor(i / 2) * 110);
         let card = scene.add.container(x, y);
-        let r = scene.add.rectangle(0, 0, 140, 100, COLORS[key].hex).setStrokeStyle(5, 0xffffff);
+        let r = scene.add.rectangle(0, 0, 130, 95, COLORS[key].hex).setStrokeStyle(5, 0xffffff);
         let textColor = (key === 'white' || key === 'yellow') ? '#333' : '#fff';
         let t = scene.add.text(0, 0, COLORS[key].text, { fontSize: '32px', fill: textColor, fontWeight: 'bold' }).setOrigin(0.5);
-        card.add([r, t]).setSize(140, 100).setData('key', key).setData('hex', COLORS[key].hex);
+        card.add([r, t]).setSize(130, 95).setData('key', key).setData('hex', COLORS[key].hex);
         wordCards.push(card);
     });
 
+    // Big Brush (220px)
     brush = scene.add.image(780, 500, 'brush').setDisplaySize(220, 220).setDepth(20).setInteractive();
     brush.setData('startX', 780).setData('startY', 500);
 
     scene.input.setDraggable(brush);
     scene.input.on('drag', (p, obj, dx, dy) => { 
         obj.x = dx; 
-        obj.y = dy - 110; 
+        obj.y = dy - 100; 
     });
     
     scene.input.on('dragend', (p, obj) => {
         let hit = null;
-        // ULTRA SENSITIVE: Increased hit radius significantly (130px)
         wordCards.forEach(c => {
-            let distance = Phaser.Math.Distance.Between(obj.x, obj.y, c.x, c.y);
-            if (distance < 130) hit = c; 
+            if (Phaser.Math.Distance.Between(obj.x, obj.y, c.x, c.y) < 110) hit = c;
         });
 
         if (hit && hit.getData('key') === currentTarget.color) {
@@ -118,7 +131,7 @@ function startSetup(scene, colorKeys, totalRounds) {
             mainObject.setTint(hit.getData('hex'));
             obj.setTint(hit.getData('hex'));
             trialCount++;
-            scene.time.delayedCall(800, () => nextRound(scene));
+            scene.time.delayedCall(1200, () => nextRound(scene));
         } else {
             scene.sound.play('wrong');
             scene.tweens.add({ targets: obj, x: 780, y: 500, duration: 400, ease: 'Back.easeOut' });
@@ -131,8 +144,8 @@ function startSetup(scene, colorKeys, totalRounds) {
 function nextRound(scene) {
     if (trialCount >= gameQueue.length) {
         scene.sound.play('congrats');
-        let overlay = scene.add.rectangle(450, 300, 900, 600, 0x000000, 0.8).setDepth(2000);
-        scene.add.text(450, 300, '完成！\n你好努力呀！', { fontSize: '70px', fill: '#fff', align: 'center' }).setOrigin(0.5).setDepth(2001);
+        scene.add.rectangle(450, 300, 900, 600, 0x000000, 0.8).setDepth(1000);
+        scene.add.text(450, 300, '好叻呀！\n你認得晒喇！', { fontSize: '60px', fill: '#fff', align: 'center' }).setOrigin(0.5).setDepth(1001);
         scene.time.delayedCall(4000, () => window.location.reload());
         return;
     }
@@ -143,20 +156,26 @@ function nextRound(scene) {
     
     if (scene.textures.exists(currentTarget.obj)) {
         mainObject.setTexture(currentTarget.obj).clearTint();
+        
+        // --- SMART SCALING BOX (320x320) ---
+        // This ensures wide objects (shoes) and tall objects (bottles)
+        // both fit perfectly without touching the speaker.
         let ratio = mainObject.width / mainObject.height;
-        if (ratio > 1) { 
-            mainObject.displayWidth = 320; mainObject.displayHeight = 320 / ratio;
-        } else { 
-            mainObject.displayHeight = 320; mainObject.displayWidth = 320 * ratio;
+        let maxWidth = 320;
+        let maxHeight = 320;
+
+        if (ratio > 1) { // Wide object (e.g. Shoe)
+            mainObject.displayWidth = maxWidth;
+            mainObject.displayHeight = maxWidth / ratio;
+        } else { // Tall object (e.g. Bottle)
+            mainObject.displayHeight = maxHeight;
+            mainObject.displayWidth = maxHeight * ratio;
         }
     }
 
-    // Play Voice immediately upon round start
-    scene.time.delayedCall(300, () => {
-        if (scene.sound.get(currentTarget.color + '_vo')) {
-            scene.sound.play(currentTarget.color + '_vo');
-        }
-    });
+    if (scene.cache.audio.exists(currentTarget.color + '_vo')) {
+        scene.sound.play(currentTarget.color + '_vo');
+    }
 }
 </script>
 </body>
