@@ -31,14 +31,13 @@ const COLORS = {
     white: { text: '白色', hex: 0xeeeeee }
 };
 
-const OBJECT_KEYS = ['bottle', 'bag', 'towel', 'paper', 'shoe', 'tissue'];
+// 'towel' has been removed from this list
+const OBJECT_KEYS = ['bottle', 'bag', 'paper', 'shoe', 'tissue'];
 let brush, mainObject, currentTarget, wordCards = [], gameQueue = [], trialCount = 0, scoreText, menuContainer;
 
 function preload() {
-    // Show loading progress so we know it hasn't crashed
     let loadTxt = this.add.text(450, 300, 'Loading 載入中...', { fontSize: '24px', fill: '#000' }).setOrigin(0.5);
 
-    // SILENT ERROR HANDLING: Don't crash if a file is missing
     this.load.on('loaderror', (file) => {
         console.warn('Skipping missing file:', file.key);
     });
@@ -82,15 +81,12 @@ function startSetup(scene, colorKeys) {
     menuContainer.destroy();
     if (scene.sound.context.state === 'suspended') scene.sound.context.resume();
 
-    // Prepare Queue
     let temp = [];
     colorKeys.forEach(k => temp.push({ color: k, obj: OBJECT_KEYS[Math.floor(Math.random()*OBJECT_KEYS.length)] }));
     gameQueue = Phaser.Utils.Array.Shuffle(temp);
 
-    // Layout
     mainObject = scene.add.image(280, 300, OBJECT_KEYS[0]).setOrigin(0.5);
     
-    // Palette
     colorKeys.forEach((key, i) => {
         let x = 650 + (i % 2 * 145);
         let y = 130 + (Math.floor(i / 2) * 110);
@@ -101,55 +97,4 @@ function startSetup(scene, colorKeys) {
         wordCards.push(card);
     });
 
-    brush = scene.add.image(780, 500, 'brush').setDisplaySize(160, 160).setDepth(20).setInteractive();
-    brush.setData('startX', 780).setData('startY', 500);
-    
-    scoreText = scene.add.text(450, 40, '', { fontSize: '28px', fill: '#333' }).setOrigin(0.5);
-    
-    scene.input.setDraggable(brush);
-    scene.input.on('drag', (p, obj, dx, dy) => { obj.x = dx; obj.y = dy - 60; });
-    scene.input.on('dragend', (p, obj) => {
-        let hit = null;
-        wordCards.forEach(c => {
-            if (Phaser.Math.Distance.Between(obj.x, obj.y, c.x, c.y) < 90) hit = c;
-        });
-
-        if (hit && hit.getData('key') === currentTarget.color) {
-            if (scene.cache.audio.exists('correct')) scene.sound.play('correct');
-            mainObject.setTint(hit.getData('hex'));
-            obj.setTint(hit.getData('hex'));
-            trialCount++;
-            scene.time.delayedCall(1500, () => nextRound(scene));
-        } else {
-            if (scene.cache.audio.exists('wrong')) scene.sound.play('wrong');
-            scene.tweens.add({ targets: obj, x: 780, y: 500, duration: 300 });
-        }
-    });
-
-    nextRound(scene);
-}
-
-function nextRound(scene) {
-    if (trialCount >= gameQueue.length) {
-        if (scene.cache.audio.exists('congrats')) scene.sound.play('congrats');
-        scene.add.rectangle(450, 300, 900, 600, 0x000000, 0.8).setDepth(1000);
-        scene.add.text(450, 300, '你好用心呀！完成！', { fontSize: '60px', fill: '#fff' }).setOrigin(0.5).setDepth(1001);
-        scene.time.delayedCall(4000, () => window.location.reload());
-        return;
-    }
-    currentTarget = gameQueue[trialCount];
-    scoreText.setText(`進度: ${trialCount + 1} / ${gameQueue.length}`);
-    
-    brush.setPosition(780, 500).clearTint();
-    mainObject.setTexture(currentTarget.obj).clearTint();
-    
-    // Scale Fix
-    let r = mainObject.width / mainObject.height;
-    if (r > 1) { mainObject.displayWidth = 350; mainObject.displayHeight = 350/r; }
-    else { mainObject.displayHeight = 350; mainObject.displayWidth = 350*r; }
-
-    if (scene.cache.audio.exists(currentTarget.color + '_vo')) scene.sound.play(currentTarget.color + '_vo');
-}
-</script>
-</body>
-</html>
+    brush = scene.add.image(780,
