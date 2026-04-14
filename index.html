@@ -21,7 +21,6 @@ const config = {
 
 const game = new Phaser.Game(config);
 
-// Levels
 const LEVEL1_COLORS = [
     { key: 'red', text: '紅色', hex: 0xff0000 },
     { key: 'yellow', text: '黃色', hex: 0xffff00 },
@@ -34,10 +33,11 @@ const LEVEL2_COLORS = [
     { key: 'orange', text: '橙色', hex: 0xffa500 },
     { key: 'purple', text: '紫色', hex: 0x800080 },
     { key: 'black', text: '黑色', hex: 0x333333 },
-    { key: 'white', text: '白色', hex: 0xffffff }
+    { key: 'white', text: '白色', hex: 0xe8e8e8 } // Light grey tint so white looks "painted"
 ];
 
-const OBJECTS = ['bottle', 'bag', 'towel', 'paper', 'shoe'];
+// Added 'tissue' to the rotation
+const OBJECTS = ['bottle', 'bag', 'towel', 'paper', 'shoe', 'tissue'];
 
 let brush, mainObject, currentTarget, palette = [], currentLevel = [];
 let trialCount = 0, scoreText, menuContainer;
@@ -53,7 +53,6 @@ function preload() {
     this.load.audio('wrong', 'assets/wrong.mp3');
     this.load.audio('congrats', 'assets/congrats.mp3');
 
-    // Prevent black screen on single file error
     this.load.on('loaderror', (file) => console.warn('Missing asset:', file.src));
 }
 
@@ -75,7 +74,7 @@ function showLevelMenu(scene) {
 function createMenuBtn(scene, y, label, callback) {
     let btn = scene.add.container(0, y);
     let rect = scene.add.rectangle(0, 0, 400, 80, 0xFFA500).setInteractive({ useHandCursor: true }).setStrokeStyle(4, 0xffffff);
-    let txt = scene.add.text(0, 0, label, { fontSize: '32px', fill: '#fff', fontFamily: 'Microsoft JhengHei' }).setOrigin(0.5);
+    let txt = scene.add.text(0, 0, label, { fontSize: '32px', fill: '#fff' }).setOrigin(0.5);
     btn.add([rect, txt]);
     rect.on('pointerdown', callback);
     return btn;
@@ -124,7 +123,6 @@ function startNewRound(scene) {
     brush.setPosition(450, 500);
     brush.clearTint();
     
-    // Choose a random object and hide color until painted
     mainObject.setTexture(Phaser.Utils.Array.GetRandom(OBJECTS));
     mainObject.clearTint();
     
