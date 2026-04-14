@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>小畫家：認文字 (修復版)</title>
+    <title>小畫家：認文字 (語音優化版)</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser-arcade-physics.min.js"></script>
     <style>
         body { margin: 0; padding: 0; background-color: #ffffff; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
@@ -11,7 +11,7 @@
 </head>
 <body>
 <script>
-// --- GLOBAL ERROR CATCHER ---
+// 全域錯誤捕捉 (Global Error Catcher)
 window.onerror = function() { return false; }; 
 
 const config = {
@@ -38,8 +38,7 @@ const OBJECT_KEYS = ['bottle', 'bag', 'paper', 'shoe', 'tissue'];
 let brush, mainObject, currentTarget, wordCards = [], gameQueue = [], trialCount = 0, scoreText, menuContainer;
 
 function preload() {
-    // Fail-safe: don't stop loading if an asset is missing
-    this.load.on('loaderror', (file) => { console.warn('Missing asset:', file.key); });
+    this.load.on('loaderror', (file) => { console.warn('找不到檔案:', file.key); });
 
     this.load.image('brush', 'assets/brush.png');
     OBJECT_KEYS.forEach(obj => { this.load.image(obj, 'assets/' + obj + '.png'); });
@@ -54,6 +53,13 @@ function preload() {
 }
 
 function create() {
+    // 點擊任何地方即解鎖音訊 (Unlock audio context on first touch)
+    this.input.once('pointerdown', () => {
+        if (this.sound.context.state === 'suspended') {
+            this.sound.context.resume();
+        }
+    });
+    
     showLevelMenu(this);
 }
 
@@ -61,112 +67,4 @@ function showLevelMenu(scene) {
     if(menuContainer) menuContainer.destroy();
     menuContainer = scene.add.container(450, 300).setDepth(100);
     let bg = scene.add.rectangle(0, 0, 900, 600, 0x000000, 0.85);
-    let title = scene.add.text(0, -120, '小畫家：認文字', { fontSize: '42px', fill: '#fff' }).setOrigin(0.5);
-    
-    let btn1 = createMenuBtn(scene, 0, '第一關 (6 題)', () => startSetup(scene, ['red', 'yellow', 'green', 'blue'], 6));
-    let btn2 = createMenuBtn(scene, 100, '第二關 (10 題)', () => startSetup(scene, Object.keys(COLORS), 10));
-    
-    menuContainer.add([bg, title, btn1, btn2]);
-}
-
-function createMenuBtn(scene, y, label, cb) {
-    let container = scene.add.container(0, y);
-    let rect = scene.add.rectangle(0, 0, 320, 80, 0xFFA500).setInteractive({useHandCursor: true}).setStrokeStyle(4, 0xffffff);
-    let txt = scene.add.text(0, 0, label, { fontSize: '30px', fill: '#fff' }).setOrigin(0.5);
-    container.add([rect, txt]);
-    rect.on('pointerdown', cb);
-    return container;
-}
-
-function startSetup(scene, colorKeys, totalRounds) {
-    menuContainer.destroy();
-    wordCards = [];
-    trialCount = 0;
-    
-    // Resume audio context for mobile
-    if (scene.sound.context.state === 'suspended') scene.sound.context.resume();
-
-    // Generate balanced queue
-    gameQueue = [];
-    for(let i=0; i < totalRounds; i++) {
-        gameQueue.push({ 
-            color: colorKeys[i % colorKeys.length], 
-            obj: OBJECT_KEYS[i % OBJECT_KEYS.length] 
-        });
-    }
-    gameQueue = Phaser.Utils.Array.Shuffle(gameQueue);
-
-    // Initial Background UI
-    mainObject = scene.add.image(280, 300, OBJECT_KEYS[0]).setOrigin(0.5);
-    scoreText = scene.add.text(450, 40, '', { fontSize: '28px', fill: '#333' }).setOrigin(0.5);
-
-    // Create Cards
-    colorKeys.forEach((key, i) => {
-        let x = 650 + (i % 2 * 145);
-        let y = 130 + (Math.floor(i / 2) * 110);
-        let card = scene.add.container(x, y);
-        let r = scene.add.rectangle(0, 0, 130, 80, COLORS[key].hex, 0.1).setStrokeStyle(4, COLORS[key].hex);
-        let t = scene.add.text(0, 0, COLORS[key].text, { fontSize: '32px', fill: '#333', fontWeight: 'bold' }).setOrigin(0.5);
-        card.add([r, t]).setSize(130, 80).setData('key', key).setData('hex', COLORS[key].hex);
-        wordCards.push(card);
-    });
-
-    brush = scene.add.image(780, 500, 'brush').setDisplaySize(160, 160).setDepth(20).setInteractive();
-    brush.setData('startX', 780).setData('startY', 500);
-    
-    scene.input.setDraggable(brush);
-    scene.input.on('drag', (p, obj, dx, dy) => { obj.x = dx; obj.y = dy - 60; });
-    scene.input.on('dragend', (p, obj) => {
-        let hit = null;
-        wordCards.forEach(c => {
-            let dist = Phaser.Math.Distance.Between(obj.x, obj.y, c.x, c.y);
-            if (dist < 90) hit = c;
-        });
-
-        if (hit && hit.getData('key') === currentTarget.color) {
-            // Success Logic
-            if(scene.sound.get('correct')) scene.sound.play('correct');
-            mainObject.setTint(hit.getData('hex'));
-            obj.setTint(hit.getData('hex'));
-            trialCount++;
-            scene.time.delayedCall(1200, () => nextRound(scene));
-        } else {
-            // Fail Logic
-            if(scene.sound.get('wrong')) scene.sound.play('wrong');
-            scene.tweens.add({ targets: obj, x: 780, y: 500, duration: 300 });
-        }
-    });
-
-    nextRound(scene);
-}
-
-function nextRound(scene) {
-    if (trialCount >= gameQueue.length) {
-        if(scene.sound.get('congrats')) scene.sound.play('congrats');
-        scene.add.rectangle(450, 300, 900, 600, 0x000000, 0.8).setDepth(1000);
-        scene.add.text(450, 300, '好叻呀！玩完喇！', { fontSize: '60px', fill: '#fff' }).setOrigin(0.5).setDepth(1001);
-        scene.time.delayedCall(4000, () => window.location.reload());
-        return;
-    }
-    
-    currentTarget = gameQueue[trialCount];
-    scoreText.setText('進度: ' + (trialCount + 1) + ' / ' + gameQueue.length);
-    
-    brush.setPosition(780, 500).clearTint();
-    
-    // Update Texture Safely
-    if (scene.textures.exists(currentTarget.obj)) {
-        mainObject.setTexture(currentTarget.obj).clearTint();
-        let r = mainObject.width / mainObject.height;
-        if (r > 1) { mainObject.displayWidth = 350; mainObject.displayHeight = 350/r; }
-        else { mainObject.displayHeight = 350; mainObject.displayWidth = 350*r; }
-    }
-
-    // Play Voice
-    if (scene.sound.get(currentTarget.color + '_vo')) {
-        scene.sound.play(currentTarget.color + '_vo');
-    }
-}
-</script>
-</body>
-</html>
+    let title = scene.add.text(0, -120, '小畫家：認文字', { fontSize
