@@ -3,14 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>小畫家：認文字</title>
+    <title>小畫家 Debug Mode</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser-arcade-physics.min.js"></script>
     <style>
-        body { margin: 0; padding: 0; background-color: #ffffff; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        body { margin: 0; padding: 0; background-color: #222; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
     </style>
 </head>
 <body>
 <script>
+// --- DEBUG OVERRIDE ---
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+    let debugDiv = document.createElement('div');
+    debugDiv.style.position = 'absolute'; debugDiv.style.color = 'red'; debugDiv.style.background = 'white';
+    debugDiv.style.padding = '10px'; debugDiv.style.zIndex = '10000';
+    debugDiv.innerHTML = '<b>程式錯誤 (Code Error):</b> ' + msg + '<br>Line: ' + lineNo;
+    document.body.appendChild(debugDiv);
+    return false;
+};
+
 const config = {
     type: Phaser.AUTO,
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: 900, height: 600 },
@@ -31,15 +41,15 @@ const COLORS = {
     white: { text: '白色', hex: 0xeeeeee }
 };
 
-// 'towel' has been removed from this list
 const OBJECT_KEYS = ['bottle', 'bag', 'paper', 'shoe', 'tissue'];
 let brush, mainObject, currentTarget, wordCards = [], gameQueue = [], trialCount = 0, scoreText, menuContainer;
 
 function preload() {
-    let loadTxt = this.add.text(450, 300, 'Loading 載入中...', { fontSize: '24px', fill: '#000' }).setOrigin(0.5);
+    let loadTxt = this.add.text(450, 300, '正在載入 (Loading)...', { fontSize: '24px', fill: '#000' }).setOrigin(0.5);
 
+    // Asset Error Logger
     this.load.on('loaderror', (file) => {
-        console.warn('Skipping missing file:', file.key);
+        console.error('檔案載入失敗 (Failed to load):', file.src);
     });
 
     this.load.image('brush', 'assets/brush.png');
@@ -62,8 +72,8 @@ function showLevelMenu(scene) {
     let bg = scene.add.rectangle(0, 0, 900, 600, 0x000000, 0.85);
     let title = scene.add.text(0, -120, '小畫家：認文字', { fontSize: '42px', fill: '#fff' }).setOrigin(0.5);
     
-    let btn1 = createMenuBtn(scene, 0, '第一關 (4色)', () => startSetup(scene, ['red', 'yellow', 'green', 'blue']));
-    let btn2 = createMenuBtn(scene, 100, '第二關 (8色)', () => startSetup(scene, Object.keys(COLORS)));
+    let btn1 = createMenuBtn(scene, 0, '第一關 (基礎)', () => startSetup(scene, ['red', 'yellow', 'green', 'blue']));
+    let btn2 = createMenuBtn(scene, 100, '第二關 (進階)', () => startSetup(scene, Object.keys(COLORS)));
     
     menuContainer.add([bg, title, btn1, btn2]);
 }
@@ -79,6 +89,8 @@ function createMenuBtn(scene, y, label, cb) {
 
 function startSetup(scene, colorKeys) {
     menuContainer.destroy();
+    wordCards = []; // Reset cards
+    trialCount = 0; // Reset trials
     if (scene.sound.context.state === 'suspended') scene.sound.context.resume();
 
     let temp = [];
@@ -97,4 +109,7 @@ function startSetup(scene, colorKeys) {
         wordCards.push(card);
     });
 
-    brush = scene.add.image(780,
+    brush = scene.add.image(780, 500, 'brush').setDisplaySize(160, 160).setDepth(20).setInteractive();
+    brush.setData('startX', 780).setData('startY', 500);
+    
+    scoreText = scene.add.text(450, 40
