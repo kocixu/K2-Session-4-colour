@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>小畫家：認顏色 (廣東話版)</title>
+    <title>小畫家：認文字</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser-arcade-physics.min.js"></script>
     <style>
         body { margin: 0; padding: 0; background-color: #f0f0f0; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-        canvas { border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        canvas { border-radius: 10px; }
     </style>
 </head>
 <body>
@@ -33,27 +33,23 @@ const LEVEL2_COLORS = [
     { key: 'orange', text: '橙色', hex: 0xffa500 },
     { key: 'purple', text: '紫色', hex: 0x800080 },
     { key: 'black', text: '黑色', hex: 0x333333 },
-    { key: 'white', text: '白色', hex: 0xe8e8e8 } // Light grey tint so white looks "painted"
+    { key: 'white', text: '白色', hex: 0xe8e8e8 }
 ];
 
-// Added 'tissue' to the rotation
 const OBJECTS = ['bottle', 'bag', 'towel', 'paper', 'shoe', 'tissue'];
 
-let brush, mainObject, currentTarget, palette = [], currentLevel = [];
+let brush, mainObject, currentTarget, wordCards = [], currentLevel = [];
 let trialCount = 0, scoreText, menuContainer;
 
 function preload() {
     this.load.image('brush', 'assets/brush.png');
     OBJECTS.forEach(obj => this.load.image(obj, `assets/${obj}.png`));
     
-    const allColorKeys = ['red', 'yellow', 'green', 'blue', 'orange', 'purple', 'black', 'white'];
-    allColorKeys.forEach(c => this.load.audio(c + '_vo', `assets/${c}_vo.mp3`));
-
+    const allKeys = ['red', 'yellow', 'green', 'blue', 'orange', 'purple', 'black', 'white'];
+    allKeys.forEach(c => this.load.audio(c + '_vo', `assets/${c}_vo.mp3`));
     this.load.audio('correct', 'assets/correct.mp3');
     this.load.audio('wrong', 'assets/wrong.mp3');
     this.load.audio('congrats', 'assets/congrats.mp3');
-
-    this.load.on('loaderror', (file) => console.warn('Missing asset:', file.src));
 }
 
 function create() {
@@ -63,17 +59,14 @@ function create() {
 function showLevelMenu(scene) {
     menuContainer = scene.add.container(450, 300).setDepth(100);
     let bg = scene.add.rectangle(0, 0, 900, 600, 0x000000, 0.8);
-    let title = scene.add.text(0, -180, '小畫家：認顏色', { fontSize: '48px', fill: '#fff', fontWeight: 'bold' }).setOrigin(0.5);
-    
-    let btn1 = createMenuBtn(scene, -40, '第一關 (基礎顏色)', () => setupGame(scene, LEVEL1_COLORS));
-    let btn2 = createMenuBtn(scene, 80, '第二關 (進階顏色)', () => setupGame(scene, LEVEL2_COLORS));
-    
-    menuContainer.add([bg, title, btn1, btn2]);
+    let btn1 = createMenuBtn(scene, -60, '第一關 (基礎)', () => setupGame(scene, LEVEL1_COLORS));
+    let btn2 = createMenuBtn(scene, 60, '第二關 (進階)', () => setupGame(scene, LEVEL2_COLORS));
+    menuContainer.add([bg, btn1, btn2]);
 }
 
 function createMenuBtn(scene, y, label, callback) {
     let btn = scene.add.container(0, y);
-    let rect = scene.add.rectangle(0, 0, 400, 80, 0xFFA500).setInteractive({ useHandCursor: true }).setStrokeStyle(4, 0xffffff);
+    let rect = scene.add.rectangle(0, 0, 300, 80, 0xFFA500).setInteractive().setStrokeStyle(4, 0xffffff);
     let txt = scene.add.text(0, 0, label, { fontSize: '32px', fill: '#fff' }).setOrigin(0.5);
     btn.add([rect, txt]);
     rect.on('pointerdown', callback);
@@ -85,71 +78,87 @@ function setupGame(scene, colorList) {
     menuContainer.destroy();
     if (scene.sound.context.state === 'suspended') scene.sound.context.resume();
 
-    mainObject = scene.add.image(280, 320, OBJECTS[0]).setDisplaySize(380, 380);
-    createPalette(scene);
+    // LEFT SIDE: The Object (Scaled Proportionally)
+    mainObject = scene.add.image(280, 300, OBJECTS[0]);
+    fixScaling(mainObject, 350); 
 
-    brush = scene.add.image(450, 500, 'brush').setDisplaySize(120, 120).setDepth(20).setInteractive();
-    brush.setData('startX', 450).setData('startY', 500);
+    createWordPalette(scene);
+
+    // BOTTOM RIGHT: The Brush
+    brush = scene.add.image(750, 520, 'brush').setDisplaySize(110, 110).setDepth(20).setInteractive();
+    brush.setData('startX', 750).setData('startY', 520);
     
-    scoreText = scene.add.text(450, 40, '進度: 0/10', { fontSize: '32px', fill: '#333', fontWeight: 'bold' }).setOrigin(0.5);
+    scoreText = scene.add.text(450, 40, '進度: 0/10', { fontSize: '28px', fill: '#333', fontWeight: 'bold' }).setOrigin(0.5);
 
     scene.input.setDraggable(brush);
     scene.input.on('drag', (p, obj, dx, dy) => { obj.x = dx; obj.y = dy; });
-    scene.input.on('dragend', (p, obj) => checkColor(scene, obj));
+    scene.input.on('dragend', (p, obj) => checkAnswer(scene, obj));
 
     startNewRound(scene);
 }
 
-function createPalette(scene) {
+// Fixed scaling function to prevent stretching
+function fixScaling(img, maxSize) {
+    let ratio = img.width / img.height;
+    if (img.width > img.height) {
+        img.displayWidth = maxSize;
+        img.displayHeight = maxSize / ratio;
+    } else {
+        img.displayHeight = maxSize;
+        img.displayWidth = maxSize * ratio;
+    }
+}
+
+function createWordPalette(scene) {
     currentLevel.forEach((color, index) => {
-        let x = 680 + (index % 2 * 120);
-        let y = 160 + (Math.floor(index / 2) * 110);
-        let spot = scene.add.circle(x, y, 45, color.hex).setStrokeStyle(6, 0xdddddd).setInteractive();
-        spot.setData('colorKey', color.key).setData('hex', color.hex);
-        palette.push(spot);
-        scene.add.text(x, y + 60, color.text, { fontSize: '20px', fill: '#666' }).setOrigin(0.5);
+        let x = 650 + (index % 2 * 140);
+        let y = 140 + (Math.floor(index / 2) * 110);
+        
+        let card = scene.add.container(x, y);
+        let rect = scene.add.rectangle(0, 0, 120, 80, color.hex, 0.2).setStrokeStyle(3, color.hex);
+        let txt = scene.add.text(0, 0, color.text, { fontSize: '32px', fill: '#333', fontWeight: 'bold' }).setOrigin(0.5);
+        
+        card.add([rect, txt]);
+        card.setData('colorKey', color.key).setData('hex', color.hex);
+        wordCards.push(card);
     });
 }
 
 function startNewRound(scene) {
     if (trialCount >= 10) {
         if (scene.cache.audio.exists('congrats')) scene.sound.play('congrats');
-        let finishBg = scene.add.rectangle(450, 300, 900, 600, 0x000000, 0.85).setDepth(1000);
-        scene.add.text(450, 300, '好叻呀！\n你認得晒啲顏色喇！', { fontSize: '64px', fill: '#fff', align: 'center' }).setOrigin(0.5).setDepth(1001);
-        scene.time.delayedCall(5000, () => window.location.reload());
+        scene.add.rectangle(450, 300, 900, 600, 0x000000, 0.8).setDepth(1000);
+        scene.add.text(450, 300, '你好叻呀！', { fontSize: '64px', fill: '#fff' }).setOrigin(0.5).setDepth(1001);
+        scene.time.delayedCall(4000, () => window.location.reload());
         return;
     }
     
-    brush.setPosition(450, 500);
-    brush.clearTint();
-    
+    brush.setPosition(750, 520).clearTint();
     mainObject.setTexture(Phaser.Utils.Array.GetRandom(OBJECTS));
+    fixScaling(mainObject, 350);
     mainObject.clearTint();
     
     currentTarget = Phaser.Utils.Array.GetRandom(currentLevel);
-    if (scene.cache.audio.exists(currentTarget.key + '_vo')) {
-        scene.sound.play(currentTarget.key + '_vo');
-    }
+    scene.sound.play(currentTarget.key + '_vo');
 }
 
-function checkColor(scene, obj) {
-    let matchedSpot = null;
-    palette.forEach(spot => {
-        let dist = Phaser.Math.Distance.Between(obj.x, obj.y, spot.x, spot.y);
-        if (dist < 60) matchedSpot = spot;
+function checkAnswer(scene, obj) {
+    let matched = null;
+    wordCards.forEach(card => {
+        let dist = Phaser.Math.Distance.Between(obj.x, obj.y, card.x, card.y);
+        if (dist < 70) matched = card; // Generous hit area for 5yo
     });
 
-    if (matchedSpot && matchedSpot.getData('colorKey') === currentTarget.key) {
-        if (scene.cache.audio.exists('correct')) scene.sound.play('correct');
-        mainObject.setTint(matchedSpot.getData('hex'));
-        obj.setTint(matchedSpot.getData('hex'));
-        
+    if (matched && matched.getData('colorKey') === currentTarget.key) {
+        scene.sound.play('correct');
+        mainObject.setTint(matched.getData('hex'));
+        obj.setTint(matched.getData('hex'));
         trialCount++;
         scoreText.setText(`進度: ${trialCount}/10`);
         scene.time.delayedCall(1500, () => startNewRound(scene));
     } else {
-        if (scene.cache.audio.exists('wrong')) scene.sound.play('wrong');
-        scene.tweens.add({ targets: obj, x: obj.getData('startX'), y: obj.getData('startY'), duration: 500, ease: 'Back.easeOut' });
+        scene.sound.play('wrong');
+        scene.tweens.add({ targets: obj, x: obj.getData('startX'), y: obj.getData('startY'), duration: 400, ease: 'Power2' });
     }
 }
 </script>
