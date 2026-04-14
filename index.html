@@ -133,7 +133,7 @@ function nextRound(scene) {
     if (trialCount >= gameQueue.length) {
         if (scene.cache.audio.exists('congrats')) scene.sound.play('congrats');
         scene.add.rectangle(450, 300, 900, 600, 0x000000, 0.8).setDepth(1000);
-        scene.add.text(450, 300, '叻叻！完成！', { fontSize: '60px', fill: '#fff' }).setOrigin(0.5).setDepth(1001);
+        scene.add.text(450, 300, '你好用心呀！完成！', { fontSize: '60px', fill: '#fff' }).setOrigin(0.5).setDepth(1001);
         scene.time.delayedCall(4000, () => window.location.reload());
         return;
     }
