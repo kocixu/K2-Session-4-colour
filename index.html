@@ -143,7 +143,7 @@ const OBJECTS = [
 
 let currentLevel = 1, currentRound = 0, score = 0, rounds = [], currentTargetColor = '', currentObject = null, draggingColor = null, isDragging = false;
 
-// ===== UPDATED FLUENT AUDIO ENGINE =====
+// ===== AUDIO ENGINE WITH iOS UNLOCK =====
 async function playAudioSequence(colorName, objectName) {
     const files = [
         GITHUB_BASE + AUDIO_FILES.intro,
@@ -154,21 +154,26 @@ async function playAudioSequence(colorName, objectName) {
         await new Promise((resolve) => {
             const audio = new Audio(src);
             audio.onended = () => {
-                setTimeout(resolve, 50); // Tiny "breath" gap
+                setTimeout(resolve, 200); // Natural 200ms gap
             };
             audio.onerror = resolve;
-            audio.play().catch(resolve);
+            audio.play().catch(() => resolve());
         });
     }
 }
 
 function playEffect(type) {
-    new Audio(GITHUB_BASE + AUDIO_FILES.ui[type]).play().catch(()=>{});
+    const sound = new Audio(GITHUB_BASE + AUDIO_FILES.ui[type]);
+    sound.play().catch(()=>{});
 }
 
 function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
 
 function startGame(level) {
+    // iOS AUDIO UNLOCK: Playing a silent sound on first click
+    const silent = new Audio();
+    silent.play().catch(()=>{});
+
     currentLevel = level; score = 0; currentRound = 0;
     rounds = [];
     const colors = LEVEL_COLORS[level];
