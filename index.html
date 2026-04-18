@@ -7,7 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
     <style>
-        html, body { height: 100%; margin: 0; overflow: hidden; }
+        html, body { height: 100%; margin: 0; overflow: hidden; touch-action: none; }
         * { font-family: 'Nunito', sans-serif; user-select: none; -webkit-user-select: none; box-sizing: border-box; }
 
         @media (max-width: 768px) {
@@ -48,11 +48,11 @@
             background: linear-gradient(135deg, #FF6B6B, #FF8E53);
             border-radius: 50%; width: 64px; height: 64px;
             display: flex; align-items: center; justify-content: center;
-            animation: pulse 2s infinite;
+            animation: pulse 2s infinite; border: none; cursor: pointer;
         }
         @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
 
-        .level-btn { padding: 20px 32px; border-radius: 20px; font-weight: 800; cursor: pointer; transition: all 0.25s; text-align: center; }
+        .level-btn { padding: 20px 32px; border-radius: 20px; font-weight: 800; cursor: pointer; transition: all 0.25s; text-align: center; border: none; }
         .level-btn:hover { transform: translateY(-4px); }
 
         .wrong-shake { animation: shake 0.4s ease-in-out; }
@@ -115,8 +115,8 @@
     </div>
 
 <script>
-// ===== CONFIGURATION - CHANGE YOUR_USERNAME AND YOUR_REPO =====
-const GITHUB_BASE = "https://raw.githubusercontent.com/kocixu/K2-Session-4-colour/main/assets/";
+// ===== CONFIGURATION - REPLACE WITH YOUR ACTUAL GITHUB URL =====
+const GITHUB_BASE = "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/assets/";
 
 const AUDIO_FILES = {
     intro: 'wo_xiang_yao.mp3',
@@ -146,7 +146,7 @@ const OBJECTS = [
 
 let currentLevel = 1, currentRound = 0, score = 0, rounds = [], currentTargetColor = '', currentObject = null, draggingColor = null, isDragging = false;
 
-// ===== AUDIO LOGIC =====
+// ===== SNAPPY AUDIO ENGINE =====
 async function playAudioSequence(colorName, objectName) {
     const files = [
         GITHUB_BASE + AUDIO_FILES.intro,
@@ -156,15 +156,24 @@ async function playAudioSequence(colorName, objectName) {
     for (const src of files) {
         await new Promise((resolve) => {
             const audio = new Audio(src);
+            audio.play().catch(resolve);
+            
+            // Fast transition: resolve when only 0.1s remains to cut dead air
+            audio.ontimeupdate = () => {
+                if (audio.duration - audio.currentTime < 0.1) {
+                    resolve();
+                    audio.ontimeupdate = null;
+                }
+            };
             audio.onended = resolve;
             audio.onerror = resolve; 
-            audio.play().catch(resolve);
         });
     }
 }
 
 function playEffect(type) {
-    new Audio(GITHUB_BASE + AUDIO_FILES.ui[type]).play().catch(()=>{});
+    const sound = new Audio(GITHUB_BASE + AUDIO_FILES.ui[type]);
+    sound.play().catch(()=>{});
 }
 
 // ===== GAME LOGIC =====
@@ -248,7 +257,8 @@ function endDrag(e) {
             svg.classList.add('colored-obj');
             svg.querySelectorAll('.obj-main').forEach(p => p.setAttribute('fill', COLORS[currentTargetColor]));
             currentRound++;
-            setTimeout(loadRound, 1500);
+            // Faster delay to next round (800ms)
+            setTimeout(loadRound, 800);
         } else {
             playEffect('wrong');
             card.classList.add('wrong-shake');
