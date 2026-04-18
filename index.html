@@ -115,7 +115,7 @@
     </div>
 
 <script>
-// ===== CONFIGURATION - REPLACE WITH YOUR ACTUAL GITHUB URL =====
+// ===== CONFIGURATION - CHANGE YOUR_USERNAME AND YOUR_REPO =====
 const GITHUB_BASE = "https://raw.githubusercontent.com/kocixu/K2-Session-4-colour/main/assets/";
 
 const AUDIO_FILES = {
@@ -146,7 +146,7 @@ const OBJECTS = [
 
 let currentLevel = 1, currentRound = 0, score = 0, rounds = [], currentTargetColor = '', currentObject = null, draggingColor = null, isDragging = false;
 
-// ===== SNAPPY AUDIO ENGINE =====
+// ===== NATURAL OVERLAP AUDIO ENGINE =====
 async function playAudioSequence(colorName, objectName) {
     const files = [
         GITHUB_BASE + AUDIO_FILES.intro,
@@ -158,9 +158,10 @@ async function playAudioSequence(colorName, objectName) {
             const audio = new Audio(src);
             audio.play().catch(resolve);
             
-            // Fast transition: resolve when only 0.01s remains to cut dead air
+            // Starts next file 0.25s before end to create a natural sentence flow
+            const overlapTime = 0.25; 
             audio.ontimeupdate = () => {
-                if (audio.duration - audio.currentTime < 0.01) {
+                if (audio.duration && (audio.duration - audio.currentTime < overlapTime)) {
                     resolve();
                     audio.ontimeupdate = null;
                 }
@@ -172,8 +173,7 @@ async function playAudioSequence(colorName, objectName) {
 }
 
 function playEffect(type) {
-    const sound = new Audio(GITHUB_BASE + AUDIO_FILES.ui[type]);
-    sound.play().catch(()=>{});
+    new Audio(GITHUB_BASE + AUDIO_FILES.ui[type]).play().catch(()=>{});
 }
 
 // ===== GAME LOGIC =====
@@ -257,8 +257,8 @@ function endDrag(e) {
             svg.classList.add('colored-obj');
             svg.querySelectorAll('.obj-main').forEach(p => p.setAttribute('fill', COLORS[currentTargetColor]));
             currentRound++;
-            // Faster delay to next round (800ms)
-            setTimeout(loadRound, 800);
+            // Rapid round transition (600ms)
+            setTimeout(loadRound, 600);
         } else {
             playEffect('wrong');
             card.classList.add('wrong-shake');
