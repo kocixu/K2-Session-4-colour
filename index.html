@@ -158,9 +158,9 @@ async function playAudioSequence(colorName, objectName) {
             const audio = new Audio(src);
             audio.play().catch(resolve);
             
-            // Fast transition: resolve when only 0.1s remains to cut dead air
+            // Fast transition: resolve when only 0.01s remains to cut dead air
             audio.ontimeupdate = () => {
-                if (audio.duration - audio.currentTime < 0.1) {
+                if (audio.duration - audio.currentTime < 0.01) {
                     resolve();
                     audio.ontimeupdate = null;
                 }
