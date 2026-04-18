@@ -143,21 +143,28 @@ const OBJECTS = [
 
 let currentLevel = 1, currentRound = 0, score = 0, rounds = [], currentTargetColor = '', currentObject = null, draggingColor = null, isDragging = false;
 
-// ===== AUDIO ENGINE WITH iOS UNLOCK =====
+// Robust Audio Logic
 async function playAudioSequence(colorName, objectName) {
     const files = [
         GITHUB_BASE + AUDIO_FILES.intro,
         GITHUB_BASE + AUDIO_FILES.colors[colorName],
         GITHUB_BASE + AUDIO_FILES.objects[objectName]
     ];
+    
     for (const src of files) {
         await new Promise((resolve) => {
-            const audio = new Audio(src);
-            audio.onended = () => {
-                setTimeout(resolve, 200); // Natural 200ms gap
-            };
-            audio.onerror = resolve;
-            audio.play().catch(() => resolve());
+            const audio = new Audio();
+            audio.src = src;
+            audio.onended = () => setTimeout(resolve, 200);
+            audio.onerror = () => resolve(); // Skip if file missing
+            
+            const playPromise = audio.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(e => {
+                    console.log("Audio block:", e);
+                    resolve();
+                });
+            }
         });
     }
 }
@@ -170,10 +177,7 @@ function playEffect(type) {
 function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
 
 function startGame(level) {
-    // iOS AUDIO UNLOCK: Playing a silent sound on first click
-    const silent = new Audio();
-    silent.play().catch(()=>{});
-
+    // This button tap "unlocks" audio for iPhone
     currentLevel = level; score = 0; currentRound = 0;
     rounds = [];
     const colors = LEVEL_COLORS[level];
@@ -196,7 +200,9 @@ function loadRound() {
     document.getElementById('objectSvg').classList.remove('colored-obj');
     document.getElementById('objectLabel').textContent = r.object.name;
     document.getElementById('progressFill').style.width = ((currentRound / rounds.length) * 100) + '%';
-    playCurrentAudio();
+    
+    // Tiny delay to ensure screen has switched before audio plays
+    setTimeout(playCurrentAudio, 300);
 }
 
 function playCurrentAudio() {
@@ -266,14 +272,20 @@ document.addEventListener('touchmove', (e) => { if (isDragging) moveBrush(e); },
 document.addEventListener('mouseup', endDrag); document.addEventListener('touchend', endDrag);
 
 function showScreen(id) {
-    ['levelSelect','gameScreen','congratsScreen'].forEach(s => document.getElementById(s).classList.add('hidden'));
-    document.getElementById(id).classList.remove('hidden');
-    document.getElementById(id).classList.add('flex');
+    ['levelSelect','gameScreen','congratsScreen'].forEach(s => {
+        const el = document.getElementById(s);
+        el.classList.add('hidden');
+        el.classList.remove('flex');
+    });
+    const active = document.getElementById(id);
+    active.classList.remove('hidden');
+    active.classList.add('flex');
 }
 
 function backToMenu() { showScreen('levelSelect'); }
 function showCongrats() { playEffect('cheer'); showScreen('congratsScreen'); document.getElementById('finalScore').textContent = `得分: ${score} / ${rounds.length}`; }
 
+// Initialize icons
 lucide.createIcons();
 </script>
 </body>
