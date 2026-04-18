@@ -158,8 +158,8 @@ async function playAudioSequence(colorName, objectName) {
             const audio = new Audio(src);
             audio.play().catch(resolve);
             
-            // Starts next file 0.25s before end to create a natural sentence flow
-            const overlapTime = 0.25; 
+            // Starts next file 0.4s before end to create a natural sentence flow
+            const overlapTime = 0.4; 
             audio.ontimeupdate = () => {
                 if (audio.duration && (audio.duration - audio.currentTime < overlapTime)) {
                     resolve();
