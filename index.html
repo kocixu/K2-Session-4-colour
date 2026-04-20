@@ -114,7 +114,7 @@
 
 <script>
 // REPLACE WITH YOUR GITHUB REPO DETAILS
-const GITHUB_BASE = "https://raw.githubusercontent.com/kocixu/K2-Session-4-colour/main/assets/";
+const GITHUB_BASE = "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/assets/";
 
 const AUDIO_FILES = {
     intro: 'wo_xiang_yao.mp3',
@@ -142,29 +142,29 @@ const OBJECTS = [
 ];
 
 let currentLevel = 1, currentRound = 0, score = 0, rounds = [], currentTargetColor = '', currentObject = null, draggingColor = null, isDragging = false;
+let audioCache = [];
 
-// Robust Audio Logic
-async function playAudioSequence(colorName, objectName) {
-    const files = [
+// PRE-LOADS THE SENTENCE AUDIOS TO PREVENT GAPS
+function prepareAudio(colorName, objectName) {
+    const urls = [
         GITHUB_BASE + AUDIO_FILES.intro,
         GITHUB_BASE + AUDIO_FILES.colors[colorName],
         GITHUB_BASE + AUDIO_FILES.objects[objectName]
     ];
-    
-    for (const src of files) {
+    audioCache = urls.map(url => {
+        const a = new Audio();
+        a.src = url;
+        a.preload = "auto";
+        return a;
+    });
+}
+
+async function playAudioSequence() {
+    for (const audio of audioCache) {
         await new Promise((resolve) => {
-            const audio = new Audio();
-            audio.src = src;
-            audio.onended = () => setTimeout(resolve, 200);
-            audio.onerror = () => resolve(); // Skip if file missing
-            
-            const playPromise = audio.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(e => {
-                    console.log("Audio block:", e);
-                    resolve();
-                });
-            }
+            audio.onended = () => setTimeout(resolve, 100); // 100ms gap for natural speech
+            audio.onerror = resolve;
+            audio.play().catch(resolve);
         });
     }
 }
@@ -177,7 +177,6 @@ function playEffect(type) {
 function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
 
 function startGame(level) {
-    // This button tap "unlocks" audio for iPhone
     currentLevel = level; score = 0; currentRound = 0;
     rounds = [];
     const colors = LEVEL_COLORS[level];
@@ -196,17 +195,20 @@ function loadRound() {
     if (currentRound >= rounds.length) { showCongrats(); return; }
     const r = rounds[currentRound];
     currentTargetColor = r.color; currentObject = r.object;
+    
+    // Prepare audio cache immediately so it's ready when play is called
+    prepareAudio(currentTargetColor, currentObject.name);
+
     document.getElementById('objectSvg').innerHTML = r.object.svg;
     document.getElementById('objectSvg').classList.remove('colored-obj');
     document.getElementById('objectLabel').textContent = r.object.name;
     document.getElementById('progressFill').style.width = ((currentRound / rounds.length) * 100) + '%';
     
-    // Tiny delay to ensure screen has switched before audio plays
-    setTimeout(playCurrentAudio, 300);
+    setTimeout(playCurrentAudio, 400);
 }
 
 function playCurrentAudio() {
-    playAudioSequence(currentTargetColor, currentObject.name);
+    playAudioSequence();
 }
 
 function buildPalette() {
@@ -285,7 +287,6 @@ function showScreen(id) {
 function backToMenu() { showScreen('levelSelect'); }
 function showCongrats() { playEffect('cheer'); showScreen('congratsScreen'); document.getElementById('finalScore').textContent = `得分: ${score} / ${rounds.length}`; }
 
-// Initialize icons
 lucide.createIcons();
 </script>
 </body>
